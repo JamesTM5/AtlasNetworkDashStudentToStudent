@@ -1,0 +1,105 @@
+---
+title: "SSNetworkDash.RMD"
+output:   flexdashboard::flex_dashboard:
+    orientation: columns
+    social: menu
+    vertical_layout: fill
+    css: gaugeAdjustment.css
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# Install packages not yet installed and load each
+devtools::install("C:/Users/jbeng/Documents/RF/RA")
+library(RA)
+packages = c("xlsx", "igraph", "networkD3", "openxlsx", "dplyr",
+             "flexdashboard", "DT", "shiny", "tidyverse", "knitr", "dendextend", "plotly")
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+invisible(lapply(packages, library, character.only = TRUE))
+
+#Read in network question details
+source("SSSurveyConfig.R")
+#Read in client/project metadata
+source("SSClientConfig.R")
+
+set.seed (seed)
+
+#import the dashboard data
+nodes <- xlsx::read.xlsx(dataFile, sheetIndex = 1)
+edgesSSNQ <- xlsx::read.xlsx(dataFile, sheetIndex = 2)
+
+#store node information unpruned separately for later comparative use
+unprocessedNodes <- nodes
+
+edgesSSNQNumeric <- makeResponseNumeric(edgesSSNQ,
+                                        answersSSNQ,
+                                        responseColumn =
+                                        responseColumnSSNQ)
+
+#prune edges to only the most positive
+edgesSSNQNumericFiltered <- dplyr::filter(edgesContactVolumeNumeric, 
+                                           edgesContactVolumeNumeric$numericScoreList > 
+                                             thresholdForEdgeDrawing)
+
+#list all the question data in order to loop the network analysis over them.
+surveyData <- list(edgesSSNQNumericFiltered)
+
+source("networkSurveyAnalysis.R")
+
+totalNetworkInfo[[length(totalNetworkInfo)+1]] <-
+  surveyDataAnalysis(questionData = surveyData[[1]])
+
+# totalNetwork Info (for each question):
+#  1. Degree In
+#  2. Degree Out
+#  3. Degree all
+#  4. Diameter
+#  5. Edge Density
+#  6. Reciprocity
+#  7. Hub Score
+#  8. Authority Score
+#  9. Key Relationships
+#  10. Closeness
+#  11. Isolates
+
+source("calculateHomophyly.R")
+homophylySSNQ <- calculateHomophyly(
+                                homophylyEdgeList = edgesSSNQNumeric,
+                                anonymous = anonymous,
+                                socioDemographicVariable =
+                                  socioDemographicVariables,
+                                nodes = nodes)
+
+# Format Socio-Demographic Variables info
+predictiveSDVSSNQ <- levels(as.factor(unlist(homophylySSNQ[[1]])))
+nonPredictiveSDVContactVolume <- levels(as.factor(unlist(homophylySSNQ[[2]])))
+if(length(predictiveSDVWellKnown > 0)) {
+  predictiveSDVWellKnownFormatted <- 
+    formatDataForDisplay(predictiveSDVWellKnown)
+}
+
+if(length(nonPredictiveSDVWellKnown > 0)) {
+  nonPredictiveSDVWellKnownFormatted <- 
+    formatDataForDisplay(nonPredictiveSDVWellKnown)
+}
+
+#find isolates
+isolatesSSNQ <- nodes$id [!(nodes$id %in% totalNetworkInfo[[1]][[3]][["People"]])]
+
+#make a colour palette
+colourPalette <- defineColourPalette()
+listOfColours <- colourPalette[[2]]
+colorJS <- colourPalette[[1]]
+
+#Make an igraph object for each question
+SSNQGraphFromDataset <- data.frame(
+  edgesSSNQNumericFiltered$source,
+  edgesSSNQNumericFiltered$target,
+  ... = edgesSSNQNumericFiltered$numericScoreList)
+SSNQGraph <- graph_from_data_frame(SSNQGraphFromDataset,
+                                            directed = T)
+```
+
