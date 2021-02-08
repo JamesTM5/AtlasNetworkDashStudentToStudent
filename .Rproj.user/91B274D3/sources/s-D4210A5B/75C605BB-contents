@@ -128,6 +128,27 @@ degreeAllHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[3]])
 degreeInHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[1]])
 degreeOutHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[2]])
 
+#format Authority Score
+AS <- data.table::setDT(as.data.frame(totalNetworkInfo[[1]][[8]]),
+                             keep.rownames = TRUE) []
+ASFormatted <- formatListForDisplay(AS)
+
+#format Hub Score
+HS <- data.table::setDT(as.data.frame(totalNetworkInfo[[1]][[7]]),
+                             keep.rownames = TRUE) []
+HSFormatted <- formatListForDisplay(HS)
+
+#Constructing raw data information for display clientside
+if(dataSource == "Polinode") {
+    processedNodes <- select(unprocessedNodes, -c(x,y, size, color, List, Size))
+    for(i in 1:length(names(processedNodes))) {
+      names(processedNodes)[i] <- chartr(".", " ", names(processedNodes)[i])
+      if (nchar(names(processedNodes[i])) > 12) {
+        names(processedNodes)[i] <- abbreviate(names(processedNodes)[i], minlength=7, strict = TRUE)
+      }
+    }
+}
+
 ```
 
 Overview
@@ -332,18 +353,15 @@ Key Network Information {data-width=250}
 
 <center>
 ```{r, results = 'asis'}
-
-#FROM HERE CODE IS NOT FOR SSNQ YET AND NEEDS EDITING APPROPRIATELY
-
-if (length(as.character(HSContactVolumeFormatted) > 0)) {
-  cat(HSContactVolumeFormatted)
+if (length(as.character(HSFormatted) > 0)) {
+  cat(HSFormatted)
 } else {
   cat("Contact Volume Hub Analysis Encountered an Error")
 }
 ```
 </center>
 
-> These people are the social lifeblood of the network:  Removing them will
+> These people are the social lifeblood of the class:  Removing them will
 hamper communication and they make good contacts for new members to get more
 involved.
 
@@ -351,16 +369,15 @@ involved.
 
 <center>
 ```{r, results = 'asis'}
-
-if (length(as.character(ASContactVolume) > 0)) {
-  cat(ASContactVolumeFormatted)
+if (length(as.character(ASFormatted) > 0)) {
+  cat(ASFormatted)
 } else {
   cat("Network Authority Analysis Encountered an Error")
 }
 ```
 </center>
 
->These people are those people go to when they need advice or guidance:  They
+>These class members are those others most commonly go to when they need advice or guidance:  They
 have high value to others in the group.
 
 ### Fundamental Relationships  {data-height=750}
@@ -384,7 +401,7 @@ cat(paste(totalNetworkInfo[[1]][[9]][3,1], "<br>", "and<br>", totalNetworkInfo[[
 ```
 </center>
 
->These are the relationships which make the group operate as it does.  Promoting
+>These are the relationships which make the class operate as it does.  Promoting
 these adds cohesion.
 
 ### Network Isolates
@@ -397,3 +414,85 @@ cat(isolatesSSNQ)
 
 >These people are not joined to any others in the network by positive
 relationships in at least one of the dimensions they were asked about.
+
+Per Individual {data-orientation=columns}
+=======================================================================
+
+Individual Score Profiles {data-width=900 .tabset}
+-----------------------------------------------------------------------
+
+### 'Well Known' Individual Score Profiles
+
+```{r}
+renderPlotly ({
+generatePolar(data = edgesSSNQNumeric)
+})
+
+```
+
+> Scores for each person for how well they report knowing one another can be explored here.  Click on the person's name in the list to visualise the scores and hover over the graph for more details.  Select multiple people to overlay their scores for comparison.  The green dotted line is the average score given by the network.
+
+Degree{.tabset}
+-----------------------------------------------------------------------
+
+### Degree All Score
+
+```{r}
+renderPlotly ({
+  degreeAllHistogram
+})
+
+```
+
+> The higher the overall degree score, the more tied in the person is to the network.
+
+### Degree In Score
+
+```{r}
+renderPlotly ({
+  degreeInHistogram
+})
+```
+
+> A higher 'Degree in' score indicates that more people in the network come
+to them for information
+
+### Degree Out Score
+
+```{r}
+renderPlotly({
+  degreeOutHistogram
+})
+```
+
+> A higher 'Degree out' score indicates that the person is well connected within
+the network.
+
+Raw Data
+=======================================================================
+
+Below is the raw data from which the Relationships Foundation have derived their
+analysis. `r if(anonymous == TRUE) {paste("These data have been anonymised but remain sensitive and should be treated as such.")}`
+`r if(anonymous == FALSE) {paste("These data are not anonymised and should be treated sensitively.")}`
+
+
+```{r}
+#display info on each group member (each node)
+#TODO: make anonymous where needed, test inline statement generation above for anonymous = FALSE
+#TODO: fix bottom of page cutoff and the explanatory text condensing on mobile by breaking into rows with suppressed titles.
+
+dataTableWithDownload(processedNodes)
+```
+
+Our Explanation
+=======================================================================
+
+For further information about the methodology we employ, please review our [Introduction to RF Social Network Analysis].
+
+This is where the input from John goes when that is prepared.
+
+
+Introduction to RF Social Network Analysis {.hidden}
+=======================================================================
+
+Here is some text for the hidden page

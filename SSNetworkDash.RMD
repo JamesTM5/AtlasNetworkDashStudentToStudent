@@ -75,15 +75,15 @@ homophylySSNQ <- calculateHomophyly(
 
 # Format Socio-Demographic Variables info
 predictiveSDVSSNQ <- levels(as.factor(unlist(homophylySSNQ[[1]])))
-nonPredictiveSDVContactVolume <- levels(as.factor(unlist(homophylySSNQ[[2]])))
-if(length(predictiveSDVWellKnown > 0)) {
-  predictiveSDVWellKnownFormatted <- 
-    formatDataForDisplay(predictiveSDVWellKnown)
+nonPredictiveSDVSSNQ <- levels(as.factor(unlist(homophylySSNQ[[2]])))
+if(length(predictiveSDVSSNQ > 0)) {
+  predictiveSDVSSNQFormatted <- 
+    formatDataForDisplay(predictiveSDVSSNQ)
 }
 
-if(length(nonPredictiveSDVWellKnown > 0)) {
-  nonPredictiveSDVWellKnownFormatted <- 
-    formatDataForDisplay(nonPredictiveSDVWellKnown)
+if(length(nonPredictiveSDVSSNQ > 0)) {
+  nonPredictiveSDVSSNQFormatted <- 
+    formatDataForDisplay(nonPredictiveSDVSSNQ)
 }
 
 #find isolates
@@ -99,7 +99,400 @@ SSNQGraphFromDataset <- data.frame(
   edgesSSNQNumericFiltered$source,
   edgesSSNQNumericFiltered$target,
   ... = edgesSSNQNumericFiltered$numericScoreList)
-SSNQGraph <- graph_from_data_frame(SSNQGraphFromDataset,
-                                            directed = T)
+SSNQGraph <- graph_from_data_frame(SSNQGraphFromDataset, directed = T)
+
+# Perform Communities Analysis for each igraph object
+SSNQCommunitiesData <- cluster_walktrap(SSNQGraph)
+SSNQMembers <- membership(SSNQCommunitiesData)
+
+#construct raw data for display clientside.
+if(dataSource == "Polinode") {
+    processedNodes <- select(unprocessedNodes, -c(x,y, size, color, List, Size))
+    for(i in 1:length(names(processedNodes))) {
+      names(processedNodes)[i] <- chartr(".", " ", names(processedNodes)[i])
+      if (nchar(names(processedNodes[i])) > 12) {
+        names(processedNodes)[i] <- abbreviate(names(processedNodes)[i], minlength=7, strict = TRUE)
+      }
+    }
+}
+
+numberOfGroups <- cliquiness(SSNQMembers, 3)
+
+#TODO: determine summary score valueBox input from data
+
+#TODO: commentary processing
+
+source("generatePolar.R")
+source("generateDegreeHistogram.R")
+degreeAllHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[3]])
+degreeInHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[1]])
+degreeOutHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[2]])
+
+#format Authority Score
+AS <- data.table::setDT(as.data.frame(totalNetworkInfo[[1]][[8]]),
+                             keep.rownames = TRUE) []
+ASFormatted <- formatListForDisplay(AS)
+
+#format Hub Score
+HS <- data.table::setDT(as.data.frame(totalNetworkInfo[[1]][[7]]),
+                             keep.rownames = TRUE) []
+HSFormatted <- formatListForDisplay(HS)
+
+#Constructing raw data information for display clientside
+if(dataSource == "Polinode") {
+    processedNodes <- select(unprocessedNodes, -c(x,y, size, color, List, Size))
+    for(i in 1:length(names(processedNodes))) {
+      names(processedNodes)[i] <- chartr(".", " ", names(processedNodes)[i])
+      if (nchar(names(processedNodes[i])) > 12) {
+        names(processedNodes)[i] <- abbreviate(names(processedNodes)[i], minlength=7, strict = TRUE)
+      }
+    }
+}
+
 ```
 
+Overview
+=======================================================================
+  
+Headlines {data-width=200}
+--------------------------------------------------------------------------
+
+### Network Health
+
+```{r}
+
+#valueBox(
+#  overallHealth[1],
+#  color = overallHealth[2],
+#  icon = "fa-file-medical"
+#)
+```
+
+### Potential for Improvement
+
+```{r}
+
+#valueBox(
+#  overallPfI[1],
+#  color = overallPfI[2],
+#  icon = "fa-chart-line"
+#)
+```
+
+### Motivation to Improve
+
+```{r}
+
+#valueBox(
+#  overallMfI[1],
+#  color = overallMfI[2],
+#  icon = "fa-seedling"
+#)
+```
+
+
+### Our Commentary
+
+  The data shown here is a result of analysis conducted upon the social
+   network data provided by completing our Relationships Foundation
+   Questionnaires, along with any other information provided to us by you
+   and/or `r clientName`.
+
+  Our analysis assesses this class to be...
+  
+Row {data-width=250}
+-----------------------------------------------------------------------
+
+### Class Diameter
+
+```{r}
+diameter <- totalNetworkInfo[[1]][[4]]
+
+# derive sector colours for gauge from nrow(nodes) and whether
+# the graph is fragmented
+
+if(length(CDSSNQ[!CDSSNQ==0])>1) {
+  customSectors <-  gaugeSectors (
+    danger = c(0, 100)
+  )
+} else {
+  customSectors <-  gaugeSectors (
+    success = c(0,(nrow(nodes)/6)),
+    warning = c((nrow(nodes)/6), (nrow(nodes)/4)),
+    danger = c((nrow(nodes)/4), (nrow(nodes)/2)))
+}
+
+#make gauge
+gauge(round(diameter, digits = 2), min = 1, max = (nrow(nodes)/2), sectors = customSectors)
+
+#provide warning text if graph is fragmented.
+if (graphConnected(SSNQGraph)) {
+  SSNQConnectedWarning <- paste("However, as this group is split across ",
+    "separate unconnected sub-groups, this may not be a good measure of group ",
+    "cohesiveness.",
+    sep = "")
+} else {
+  SSNQConnectedWarning <- ""
+}
+```
+ 
+> the most distant people are `r round(diameter, digits=0)` relationships away
+from each other. <span style="color: red;">`r SSNQConnectedWarning`</span> 
+
+
+### Class Edge Density
+
+```{r}
+edgeDensity <- totalNetworkInfo[[1]][[5]]
+gauge(round(edgeDensity, digits = 2), min = 0, max = 1, gaugeSectors(
+    success = c(0.6, 1), 
+    warning = c(0.4, 0.59), 
+    danger = c(0, 0.39)
+  ))
+```
+  
+> `r round(edgeDensity, digits = 2)*100`% of all possible relationships are
+strongly positive.
+  
+### Class Reciprocity
+  
+```{r}
+reciprocity <- totalNetworkInfo[[1]][[6]]
+gauge(round(reciprocity, digits = 2), min = 0, max = 1, gaugeSectors(
+    success = c(0.6, 1), 
+    warning = c(0.4, 0.59), 
+    danger = c(0, 0.39)
+  ))
+```
+
+> Both parties agreed on a relationship status
+`r round(reciprocity, digits = 2)*100`% of the time.
+
+### Class Predictive Factors
+
+<center>
+```{r, results = 'asis'}
+if (length(predictiveSDVSSNQ > 0)) {
+  cat(predictiveSDVSSNQFormatted)
+} else {
+  cat("None")
+}
+```
+</center>
+
+>These factors statistically significantly influence the nature and function of
+the network
+
+### Class Non-Predictive Factors
+
+<center>
+```{r, results = 'asis'}
+if (length(nonPredictiveSDVSSNQ > 0)) {
+  cat(nonPredictiveSDVSSNQFormatted)
+} else {
+  cat("None")
+}
+```
+</center>
+
+>These factors do not statistically significantly influence the nature and
+function of the network
+
+
+Network Maps 
+----------------------------------------------------------------
+
+### Summary graph {.no-padding}
+
+```{r}
+#generate a D3 graph for the center upper panel
+#Convert igraph to D3
+SSNQNetworkD3 <- igraph_to_networkD3(SSNQGraph, group = SSNQMembers)
+
+#Write out D3 Graph
+forceNetwork(Links = SSNQNetworkD3$links,
+             Nodes = SSNQNetworkD3$nodes,
+             Source = 'source',
+             Target = 'target',
+             NodeID = 'name',
+             Group = 'group',
+             zoom = TRUE,
+             #linkDistance = 100,
+             colourScale = colorJS,
+             height = 500,
+             width = NULL,
+             fontSize = 14,
+             fontFamily = "serif",
+             linkWidth = JS("function(d) { return Math.sqrt(d.value); }"),
+             radiusCalculation = JS(" Math.sqrt(d.nodesize)+6"),
+             charge = -120,
+             linkColour = "#666",
+             opacity = 1
+             )
+             
+```
+
+> This graph represents all the most productive relationships in the network.  Each dot is a person, and each edge is a productive relationship.  The colours indicate cliques, or subgroups in the data which naturally form as people work together. zoom using the scroll wheel or pinch on a touchscreen device, and drag people around to see who is connected most closely to them.
+
+### Class Communities Dendrogram
+<center>
+```{r}
+
+SSNQDend <- as.dendrogram(SSNQCommunitiesData)
+plot(SSNQDend, horiz = TRUE)
+
+```
+</center>
+
+> The 'tree and leaf' dendrogram shows how the network is split into subgroups.  The higher the number, and further leftward the split, the bigger the distance between the group members.
+
+Key Network Information {data-width=250}
+-----------------------------------------------------
+
+### Class 'Hubs' {data-height=350} 
+
+<center>
+```{r, results = 'asis'}
+if (length(as.character(HSFormatted) > 0)) {
+  cat(HSFormatted)
+} else {
+  cat("Contact Volume Hub Analysis Encountered an Error")
+}
+```
+</center>
+
+> These people are the social lifeblood of the class:  Removing them will
+hamper communication and they make good contacts for new members to get more
+involved.
+
+### Class 'Authorities' {data-height=350} 
+
+<center>
+```{r, results = 'asis'}
+if (length(as.character(ASFormatted) > 0)) {
+  cat(ASFormatted)
+} else {
+  cat("Network Authority Analysis Encountered an Error")
+}
+```
+</center>
+
+>These class members are those others most commonly go to when they need advice or guidance:  They
+have high value to others in the group.
+
+### Fundamental Relationships  {data-height=750}
+
+<center>
+```{r, results = 'asis'}
+firstRelationship <- paste(totalNetworkInfo[[1]][[9]][1,1], "<br>", "and<br>", totalNetworkInfo[[1]][[9]][1,2])
+cat(firstRelationship)
+```
+
+***
+
+```{r, results = 'asis'}
+cat(paste(totalNetworkInfo[[1]][[9]][2,1], "<br>", "and<br>", totalNetworkInfo[[1]][[9]][2,2]))
+```
+
+***
+
+```{r, results = 'asis'}
+cat(paste(totalNetworkInfo[[1]][[9]][3,1], "<br>", "and<br>", totalNetworkInfo[[1]][[9]][3,2]))
+```
+</center>
+
+>These are the relationships which make the class operate as it does.  Promoting
+these adds cohesion.
+
+### Network Isolates
+
+<center>
+```{r, results = 'asis'}
+cat(isolatesSSNQ)
+```
+</center>
+
+>These people are not joined to any others in the network by positive
+relationships in at least one of the dimensions they were asked about.
+
+Per Individual {data-orientation=columns}
+=======================================================================
+
+Individual Score Profiles {data-width=900 .tabset}
+-----------------------------------------------------------------------
+
+### 'Well Known' Individual Score Profiles
+
+```{r}
+renderPlotly ({
+generatePolar(data = edgesSSNQNumeric)
+})
+
+```
+
+> Scores for each person for how well they report knowing one another can be explored here.  Click on the person's name in the list to visualise the scores and hover over the graph for more details.  Select multiple people to overlay their scores for comparison.  The green dotted line is the average score given by the network.
+
+Degree{.tabset}
+-----------------------------------------------------------------------
+
+### Degree All Score
+
+```{r}
+renderPlotly ({
+  degreeAllHistogram
+})
+
+```
+
+> The higher the overall degree score, the more tied in the person is to the network.
+
+### Degree In Score
+
+```{r}
+renderPlotly ({
+  degreeInHistogram
+})
+```
+
+> A higher 'Degree in' score indicates that more people in the network come
+to them for information
+
+### Degree Out Score
+
+```{r}
+renderPlotly({
+  degreeOutHistogram
+})
+```
+
+> A higher 'Degree out' score indicates that the person is well connected within
+the network.
+
+Raw Data
+=======================================================================
+
+Below is the raw data from which the Relationships Foundation have derived their
+analysis. `r if(anonymous == TRUE) {paste("These data have been anonymised but remain sensitive and should be treated as such.")}`
+`r if(anonymous == FALSE) {paste("These data are not anonymised and should be treated sensitively.")}`
+
+
+```{r}
+#display info on each group member (each node)
+#TODO: make anonymous where needed, test inline statement generation above for anonymous = FALSE
+#TODO: fix bottom of page cutoff and the explanatory text condensing on mobile by breaking into rows with suppressed titles.
+
+dataTableWithDownload(processedNodes)
+```
+
+Our Explanation
+=======================================================================
+
+For further information about the methodology we employ, please review our [Introduction to RF Social Network Analysis].
+
+This is where the input from John goes when that is prepared.
+
+
+Introduction to RF Social Network Analysis {.hidden}
+=======================================================================
+
+Here is some text for the hidden page
