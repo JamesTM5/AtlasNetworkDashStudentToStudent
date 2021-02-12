@@ -1,6 +1,0 @@
-"0","#make a colourt palette
-colourPalette <- defineColourPalette()
-"
-"2","Error in defineColourPalette() : 
-  could not find function ""defineColourPalette""
-"

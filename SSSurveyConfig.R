@@ -4,7 +4,7 @@
 #any number of responses or values accepted, in descending order of positivity
 #(a string containing "don't know" is treated exceptionally and may appear anywhere
 #in the list without disrupting analysis)
-answersSSNQ <- c("", "", "", "")
+answersSSNQ <- c("Frequently", "Sometimes", "Rarely", "Never")
 
 # Where should the system find the responses to the question from participants?
 #(These are the spreadsheet column names - the system requires an exact match)

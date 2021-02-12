@@ -1,6 +1,7 @@
 ---
-title: "SSNetworkDash.RMD"
-output:   flexdashboard::flex_dashboard:
+title: "Class Network Dashboard"
+output:
+  flexdashboard::flex_dashboard:
     orientation: columns
     social: menu
     vertical_layout: fill
@@ -40,12 +41,12 @@ edgesSSNQNumeric <- makeResponseNumeric(edgesSSNQ,
                                         responseColumnSSNQ)
 
 #prune edges to only the most positive
-edgesSSNQNumericFiltered <- dplyr::filter(edgesContactVolumeNumeric, 
-                                           edgesContactVolumeNumeric$numericScoreList > 
+edgesSSNQNumericFiltered <- dplyr::filter(edgesSSNQNumeric, 
+                                           edgesSSNQNumeric$numericScoreList > 
                                              thresholdForEdgeDrawing)
 
 #list all the question data in order to loop the network analysis over them.
-surveyData <- list(edgesSSNQNumericFiltered)
+ surveyData <- list(edgesSSNQNumericFiltered)
 
 source("networkSurveyAnalysis.R")
 
@@ -83,7 +84,7 @@ if(length(predictiveSDVSSNQ > 0)) {
 
 if(length(nonPredictiveSDVSSNQ > 0)) {
   nonPredictiveSDVSSNQFormatted <- 
-    formatDataForDisplay(nonPredictiveSDVSSNQ)
+    formatListForDisplay(nonPredictiveSDVSSNQ)
 }
 
 #find isolates
@@ -103,6 +104,11 @@ SSNQGraph <- graph_from_data_frame(SSNQGraphFromDataset, directed = T)
 
 # Perform Communities Analysis for each igraph object
 SSNQCommunitiesData <- cluster_walktrap(SSNQGraph)
+
+if(anonymous == TRUE) {
+  SSNQCommunitiesData$names <- humaniformat::last_name(SSNQCommunitiesData$names)
+}
+
 SSNQMembers <- membership(SSNQCommunitiesData)
 
 #construct raw data for display clientside.
@@ -131,12 +137,17 @@ degreeOutHistogram <- generateDegreeHistogram(totalNetworkInfo[[1]][[2]])
 #format Authority Score
 AS <- data.table::setDT(as.data.frame(totalNetworkInfo[[1]][[8]]),
                              keep.rownames = TRUE) []
-ASFormatted <- formatListForDisplay(AS)
+ASFormatted <- unlist(formatListForDisplay(AS[1:3,1]))
+ASFormatted[[1]] <- paste(ASFormatted[[1]], "<br>", sep = " ")
+ASFormatted[[2]] <- paste(ASFormatted[[2]], "<br>", sep = " ")
 
 #format Hub Score
 HS <- data.table::setDT(as.data.frame(totalNetworkInfo[[1]][[7]]),
                              keep.rownames = TRUE) []
-HSFormatted <- formatListForDisplay(HS)
+HSFormatted <- unlist(formatListForDisplay(HS[1:3, 1]))
+HSFormatted[[1]] <- paste(HSFormatted[[1]], "<br>", sep = " ")
+HSFormatted[[2]] <- paste(HSFormatted[[2]], "<br>", sep = " ")
+
 
 #Constructing raw data information for display clientside
 if(dataSource == "Polinode") {
@@ -211,7 +222,7 @@ diameter <- totalNetworkInfo[[1]][[4]]
 # derive sector colours for gauge from nrow(nodes) and whether
 # the graph is fragmented
 
-if(length(CDSSNQ[!CDSSNQ==0])>1) {
+if(graphConnected(SSNQGraph)== F) {
   customSectors <-  gaugeSectors (
     danger = c(0, 100)
   )
@@ -226,7 +237,8 @@ if(length(CDSSNQ[!CDSSNQ==0])>1) {
 gauge(round(diameter, digits = 2), min = 1, max = (nrow(nodes)/2), sectors = customSectors)
 
 #provide warning text if graph is fragmented.
-if (graphConnected(SSNQGraph)) {
+
+if (graphConnected(SSNQGraph) == F) {
   SSNQConnectedWarning <- paste("However, as this group is split across ",
     "separate unconnected sub-groups, this may not be a good measure of group ",
     "cohesiveness.",
@@ -353,7 +365,7 @@ Key Network Information {data-width=250}
 
 <center>
 ```{r, results = 'asis'}
-if (length(as.character(HSFormatted) > 0)) {
+if (nrow(HS) > 0) {
   cat(HSFormatted)
 } else {
   cat("Contact Volume Hub Analysis Encountered an Error")
@@ -408,7 +420,7 @@ these adds cohesion.
 
 <center>
 ```{r, results = 'asis'}
-cat(isolatesSSNQ)
+cat(formatListForDisplay(isolatesSSNQ))
 ```
 </center>
 

@@ -1,7 +1,7 @@
 #Client information goes here
 
 #What is the file that contains the data?
-dataFile <- "xxxxxxx.xlsx"
+dataFile <- "demoDataset2.xlsx"
 
 #What does the client call themselves?
 clientName <- "Example School Federation"
